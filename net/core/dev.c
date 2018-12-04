@@ -3637,7 +3637,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 		if(!list_empty(&((net_recv_wq).head))){
 			wake_up(&net_recv_wq);
 		}
-		return
+		return;
 	}
 	printk("napi_sched: %s\n",napi->dev->name);
 	list_add_tail(&napi->poll_list, &sd->poll_list);
