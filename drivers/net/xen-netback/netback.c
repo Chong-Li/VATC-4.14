@@ -1466,7 +1466,7 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 	struct ethhdr *eth_header;
 	struct iphdr * ip_header;
 	struct softnet_data *sd;
-	sd=this_cpu_ptr(softnet_data);
+	sd=this_cpu_ptr(&softnet_data);
 	int i;
 	int netbk_index=0;
 	int vif_index;
