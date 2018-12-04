@@ -3630,7 +3630,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 				     struct napi_struct *napi)
 {
 	/*VATC*/
-	if (!memcmp(napi->dev->name, "ens1", 4)){
+	/*if (!memcmp(napi->dev->name, "ens1", 4)){
 		printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
 		list_add_tail(&napi->kthread_list, &sd->kthread_list);
 		net_recv_flag = 1;
@@ -3639,7 +3639,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 		}
 		return;
 	}
-	printk("napi_sched: %s\n",napi->dev->name);
+	printk("napi_sched: %s\n",napi->dev->name);*/
 	list_add_tail(&napi->poll_list, &sd->poll_list);
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 }
@@ -8944,6 +8944,7 @@ static int __init net_dev_init(void)
 	NIC_dev = NULL;
 	BQL_flag=1;
 	DQL_flag=1;
+	net_recv_flag=0;
 			
 	init_waitqueue_head(&net_recv_wq);
 	net_recv_task=kthread_create(net_recv_kthread, (void *)&per_cpu(softnet_data, 0), "net_recv/");		
