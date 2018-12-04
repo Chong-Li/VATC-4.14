@@ -147,6 +147,8 @@
 #include <net/udp_tunnel.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
+
 
 #include "net-sysfs.h"
 
@@ -3632,7 +3634,9 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 		printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
 		list_add_tail(&napi->kthread_list, &sd->kthread_list);
 		net_recv_flag = 1;
-		wake_up(&net_recv_wq);
+		if(!list_empty(&((net_recv_wq).head))){
+			wake_up(&net_recv_wq);
+		}
 		return
 	}
 	printk("napi_sched: %s\n",napi->dev->name);
@@ -8835,7 +8839,7 @@ static int net_recv_kthread(void *data){
 		net_recv_flag = 0;
 		int vif_index;
 		for(vif_index=0; vif_index<6; vif_index++){	
-			if(netbk_tx_wq[vif_index]!=NULL&&!list_empty(&(netbk_tx_wq[vif_index]->task_list))){					
+			if(netbk_tx_wq[vif_index]!=NULL&&!list_empty(&(netbk_tx_wq[vif_index]->head))){					
 				if(BQL_flag==1&&DQL_flag==1){					
 					wake_up(netbk_tx_wq[vif_index]);
 				}

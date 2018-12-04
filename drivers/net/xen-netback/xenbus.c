@@ -79,7 +79,7 @@ static int netback_probe(struct xenbus_device *dev,
 /*RTCA*/	
 #ifdef NEW_XENBUS
 	struct softnet_data *sd;
-	sd=&__get_cpu_var(softnet_data);
+	sd=this_cpu_ptr(softnet_data);
 
 	printk("This device's nodename==%s\n",dev->nodename);
 	printk("This device's otherend==%s\n",dev->otherend);	

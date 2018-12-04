@@ -46,6 +46,7 @@
 #include <asm/xen/hypercall.h>
 #include <asm/xen/page.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 
@@ -73,7 +74,7 @@ struct netbk_rx_meta {
 #define MAX_BUFFER_OFFSET PAGE_SIZE
 
 /* extra field used in struct page */
-union page_ext {
+union page_ext_x {
 	struct {
 #if BITS_PER_LONG < 64
 #define IDX_WIDTH   8
@@ -212,7 +213,7 @@ static inline void set_page_ext(struct page *pg, struct xen_netbk *netbk,
 				unsigned int idx)
 {
 	unsigned int group = netbk - xen_netbk;
-	union page_ext ext = { .e = { .group = group + 1, .idx = idx } };
+	union page_ext_x ext = { .e = { .group = group + 1, .idx = idx } };
 
 	BUILD_BUG_ON(sizeof(ext) > sizeof(ext.mapping));
 	pg->mapping = ext.mapping;
@@ -221,7 +222,7 @@ static inline void set_page_ext(struct page *pg, struct xen_netbk *netbk,
 static int get_page_ext(struct page *pg,
 			unsigned int *pgroup, unsigned int *pidx)
 {
-	union page_ext ext = { .mapping = pg->mapping };
+	union page_ext_x ext = { .mapping = pg->mapping };
 	struct xen_netbk *netbk;
 	unsigned int group, idx;
 
@@ -280,7 +281,7 @@ static inline pending_ring_idx_t nr_pending_reqs(struct xen_netbk *netbk)
 static void xen_netbk_kick_thread(struct xen_netbk *netbk)
 {
 	//wake_up(&netbk->wq);
-	if(!list_empty(&((netbk->wq).task_list))){
+	if(!list_empty(&((netbk->wq).head))){
 		wake_up(&netbk->wq);
 
 	}
@@ -1465,7 +1466,7 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 	struct ethhdr *eth_header;
 	struct iphdr * ip_header;
 	struct softnet_data *sd;
-	sd=&__get_cpu_var(softnet_data);
+	sd=this_cpu_ptr(softnet_data);
 	int i;
 	int netbk_index=0;
 	int vif_index;
@@ -1829,7 +1830,7 @@ int xen_netbk_map_frontend_rings(struct xenvif *vif,
 	int err = -ENOMEM;
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(vif),
-				     tx_ring_ref, &addr);
+				     tx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 
@@ -1837,7 +1838,7 @@ int xen_netbk_map_frontend_rings(struct xenvif *vif,
 	BACK_RING_INIT(&vif->tx, txs, PAGE_SIZE);
 
 	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(vif),
-				     rx_ring_ref, &addr);
+				     rx_ring_ref, 1, &addr);
 	if (err)
 		goto err;
 

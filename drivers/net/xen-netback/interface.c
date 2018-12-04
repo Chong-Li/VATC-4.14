@@ -334,7 +334,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 
 		unsigned long flags;
 		struct softnet_data *sd;
-		sd=&__get_cpu_var(softnet_data);
+		sd=this_cpu_ptr(softnet_data);
 		local_irq_save(flags);
 		sd->dev_queue[dev->domid-1]=dev;
 		local_irq_restore(flags);
