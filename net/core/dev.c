@@ -145,8 +145,35 @@
 #include <linux/crash_dump.h>
 #include <linux/sctp.h>
 #include <net/udp_tunnel.h>
+#include <linux/kthread.h>
+#include <linux/sched.h>
 
 #include "net-sysfs.h"
+
+/*VATC*/
+#define NEW
+struct net_device* NIC_dev;
+EXPORT_SYMBOL(NIC_dev);
+int BQL_flag;
+EXPORT_SYMBOL(BQL_flag);
+int DQL_flag;
+EXPORT_SYMBOL(DQL_flag);
+
+wait_queue_head_t* netbk_wq[6];
+EXPORT_SYMBOL(netbk_wq);
+wait_queue_head_t* netbk_tx_wq[6];
+EXPORT_SYMBOL(netbk_tx_wq);
+
+wait_queue_head_t net_recv_wq;
+struct task_struct *net_recv_task;
+int net_recv_flag;
+
+wait_queue_head_t tx_ring_clean_wq;
+struct task_struct *tx_ring_clean_task;
+int tx_ring_clean_flag;
+
+
+
 
 /* Instead of increasing this, you should create a hash table. */
 #define MAX_GRO_SKBS 8
@@ -2493,6 +2520,8 @@ EXPORT_SYMBOL(netif_schedule_queue);
 void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 {
 	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state)) {
+		/*VATC*/
+		BQL_flag=1;
 		struct Qdisc *q;
 
 		rcu_read_lock();
@@ -3486,6 +3515,18 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 		skb_dst_force(skb);
 
 	txq = netdev_pick_tx(dev, skb, accel_priv);
+	
+	#ifdef NEW
+	//rcu_read_lock_bh();
+	qdisc_skb_cb(skb)->pkt_len = skb->len;
+	skb=dev_hard_start_xmit(skb,dev,txq,&rc);
+	if((BQL_flag==0 ||DQL_flag==0)&&skb){
+		rcu_read_unlock_bh();
+		return 110;
+	}
+	rcu_read_unlock_bh();
+	return rc;
+#endif
 	q = rcu_dereference_bh(txq->qdisc);
 
 	trace_net_dev_queue(skb);
@@ -3586,6 +3627,15 @@ int dev_tx_weight __read_mostly = 64;
 static inline void ____napi_schedule(struct softnet_data *sd,
 				     struct napi_struct *napi)
 {
+	/*VATC*/
+	if (!memcmp(napi->dev->name, "ens1", 4)){
+		printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
+		list_add_tail(&napi->kthread_list, &sd->kthread_list);
+		net_recv_flag = 1;
+		wake_up(&net_recv_wq);
+		return
+	}
+	printk("napi_sched: %s\n",napi->dev->name);
 	list_add_tail(&napi->poll_list, &sd->poll_list);
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 }
@@ -5318,6 +5368,14 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 		/* If n->poll_list is not empty, we need to mask irqs */
 		local_irq_save(flags);
 		list_del_init(&n->poll_list);
+		local_irq_restore(flags);
+	}
+
+	/*VATC*/
+	if (unlikely(!list_empty(&n->kthread_list))) {
+		/* If n->kthread_list is not empty, we need to mask irqs */
+		local_irq_save(flags);
+		list_del_init(&n->kthread_list);
 		local_irq_restore(flags);
 	}
 
@@ -8724,6 +8782,85 @@ static struct pernet_operations __net_initdata default_device_ops = {
 	.exit_batch = default_device_exit_batch,
 };
 
+static int net_recv_kthread(void *data){
+	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
+	struct sched_param net_recv_param={.sched_priority=97};
+	sched_setscheduler(net_recv_task,SCHED_FIFO,&net_recv_param);
+	struct softnet_data *sd=data;
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(net_recv_wq,
+				net_recv_flag||kthread_should_stop());
+		cond_resched();
+		if (kthread_should_stop())
+			break;
+		
+		local_irq_disable();
+		while (!list_empty(&sd->kthread_list)) {
+			struct napi_struct *n;
+			int work, weight;
+			
+			local_irq_enable();
+			n = list_first_entry(&sd->kthread_list, struct napi_struct, kthread_list);
+			weight = n->weight;
+			//weight=256;
+			work = 0;
+			work = n->poll(n, weight);
+
+			local_irq_disable();
+
+		/* Drivers must not modify the NAPI state if they
+		 * consume the entire weight.  In such cases this code
+		 * still "owns" the NAPI instance and therefore can
+		 * move the instance around on the list at-will.
+		 */
+			if (unlikely(work == weight)) {
+				if (unlikely(napi_disable_pending(n))) {
+					local_irq_enable();
+					napi_complete(n);
+					local_irq_disable();
+				} else {
+					if (n->gro_list) {
+						/* flush too old packets
+					 	* If HZ < 1000, flush all packets.
+					 	*/
+						local_irq_enable();
+						napi_gro_flush(n, HZ >= 1000);
+						local_irq_disable();
+					}
+					list_move_tail(&n->kthread_list, &sd->kthread_list);
+				}
+			}
+		}
+		net_rps_action_and_irq_enable(sd);
+		net_recv_flag = 0;
+		int vif_index;
+		for(vif_index=0; vif_index<6; vif_index++){	
+			if(netbk_tx_wq[vif_index]!=NULL&&!list_empty(&(netbk_tx_wq[vif_index]->task_list))){					
+				if(BQL_flag==1&&DQL_flag==1){					
+					wake_up(netbk_tx_wq[vif_index]);
+				}
+			}				
+		}	
+	}
+	return 0;
+}
+
+/*static int tx_ring_clean_kthread(void *data){
+	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
+	struct sched_param tx_ring_clean_param={.sched_priority=97};
+	sched_setscheduler(tx_ring_clean_task,SCHED_FIFO,&tx_ring_clean_param);
+	struct net_device *dev=data;
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(tx_ring_clean_wq,
+				tx_ring_clean_flag||kthread_should_stop());
+		cond_resched();
+		if (kthread_should_stop())
+			break;
+		e1000_clean_action(adapter);
+	}
+	return 0;
+}*/
+
 /*
  *	Initialize the DEV module. At boot time this walks the device list and
  *	unhooks any devices that fail to initialise (normally hardware not
@@ -8769,6 +8906,8 @@ static int __init net_dev_init(void)
 		skb_queue_head_init(&sd->input_pkt_queue);
 		skb_queue_head_init(&sd->process_queue);
 		INIT_LIST_HEAD(&sd->poll_list);
+		/*VATC*/
+		INIT_LIST_HEAD(&sd->kthread_list);
 		sd->output_queue_tailp = &sd->output_queue;
 #ifdef CONFIG_RPS
 		sd->csd.func = rps_trigger_softirq;
@@ -8796,6 +8935,28 @@ static int __init net_dev_init(void)
 
 	if (register_pernet_device(&default_device_ops))
 		goto out;
+
+	/*VATC*/
+	NIC_dev = NULL;
+	BQL_flag=1;
+	DQL_flag=1;
+			
+	init_waitqueue_head(&net_recv_wq);
+	net_recv_task=kthread_create(net_recv_kthread, (void *)&per_cpu(softnet_data, 0), "net_recv/");		
+	if (IS_ERR(net_recv_task)) {
+		printk(KERN_ALERT "kthread_create() fails at net_recv/n");
+	}		
+	kthread_bind(net_recv_task,0);
+	wake_up_process(net_recv_task);
+
+	/*init_waitqueue_head(&tx_ring_clean_wq);
+	tx_ring_clean_task=kthread_create(tx_ring_clean_kthread, (void *)NIC_dev, "tx_ring_clean/");		
+	if (IS_ERR(tx_ring_clean_task)) {
+		printk(KERN_ALERT "kthread_create() fails at tx_ring_clean/n");
+	}		
+	kthread_bind(tx_ring_clean_task,0);
+	wake_up_process(tx_ring_clean_task);*/
+
 
 	open_softirq(NET_TX_SOFTIRQ, net_tx_action);
 	open_softirq(NET_RX_SOFTIRQ, net_rx_action);
