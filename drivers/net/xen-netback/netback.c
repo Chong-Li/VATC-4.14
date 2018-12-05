@@ -1557,6 +1557,8 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 
 /*RTCA*/		
 #ifdef NEW_NETBACK
+			netif_receive_skb(skb);
+			goto normal;
 		
 			eth_header=(struct ethhdr *)skb_mac_header(skb);
 			ip_header=(struct iphdr *)((char *)eth_header+sizeof(struct ethhdr));
