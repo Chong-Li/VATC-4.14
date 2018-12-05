@@ -3630,7 +3630,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 				     struct napi_struct *napi)
 {
 	/*VATC*/
-	/*if (!memcmp(napi->dev->name, "ens1", 4)){
+	if (!memcmp(napi->dev->name, "ens1", 4)){
 		//printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
 		if (list_empty(&napi->kthread_list)){
 			list_add_tail(&napi->kthread_list, &sd->kthread_list);
@@ -3640,7 +3640,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 			}
 		}
 		return;
-	}*/
+	}
 	//printk("napi_sched: %s\n",napi->dev->name);
 	list_add_tail(&napi->poll_list, &sd->poll_list);
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
@@ -8809,13 +8809,17 @@ static int net_recv_kthread(void *data){
 		while (!list_empty(&sd->kthread_list)) {
 			struct napi_struct *n;
 			int work, weight;
+			void  *have;
 			
 			local_irq_enable();
 			n = list_first_entry(&sd->kthread_list, struct napi_struct, kthread_list);
+			have = netpoll_poll_lock(n);
 			weight = n->weight;
 			//weight=256;
 			work = 0;
-			work = n->poll(n, weight);
+			if (test_bit(NAPI_STATE_SCHED, &n->state)) {
+				work = n->poll(n, weight);
+			}
 
 			local_irq_disable();
 
@@ -8841,6 +8845,7 @@ static int net_recv_kthread(void *data){
 					list_move_tail(&n->kthread_list, &sd->kthread_list);
 				}
 			}
+			netpoll_poll_unlock(have);
 		}
 		net_rps_action_and_irq_enable(sd);
 		printk("Out of kthread_list\n");
