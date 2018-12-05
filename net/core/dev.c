@@ -8940,7 +8940,7 @@ static int __init net_dev_init(void)
 		goto out;
 
 	/*VATC*/
-	/*NIC_dev = NULL;
+	NIC_dev = NULL;
 	BQL_flag=1;
 	DQL_flag=1;
 	net_recv_flag=0;
@@ -8951,7 +8951,7 @@ static int __init net_dev_init(void)
 		printk(KERN_ALERT "kthread_create() fails at net_recv/n");
 	}		
 	kthread_bind(net_recv_task,0);
-	wake_up_process(net_recv_task);*/
+	wake_up_process(net_recv_task);
 
 	/*init_waitqueue_head(&tx_ring_clean_wq);
 	tx_ring_clean_task=kthread_create(tx_ring_clean_kthread, (void *)NIC_dev, "tx_ring_clean/");		
