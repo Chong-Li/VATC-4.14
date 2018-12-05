@@ -3632,10 +3632,12 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 	/*VATC*/
 	if (!memcmp(napi->dev->name, "ens1", 4)){
 		//printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
-		list_add_tail(&napi->kthread_list, &sd->kthread_list);
-		net_recv_flag = 1;
-		if(!list_empty(&((net_recv_wq).head))){
-			wake_up(&net_recv_wq);
+		if (list_empty(&napi->kthread_list)){
+			list_add_tail(&napi->kthread_list, &sd->kthread_list);
+			net_recv_flag = 1;
+			if(!list_empty(&((net_recv_wq).head))){
+				wake_up(&net_recv_wq);
+			}
 		}
 		return;
 	}
