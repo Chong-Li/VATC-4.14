@@ -3631,7 +3631,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 {
 	/*VATC*/
 	if (!memcmp(napi->dev->name, "ens1", 4)){
-		printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
+		//printk("~~~~~~~~~~~~~~~ napi_sched: %s\n",napi->dev->name);
 		list_add_tail(&napi->kthread_list, &sd->kthread_list);
 		net_recv_flag = 1;
 		if(!list_empty(&((net_recv_wq).head))){
@@ -3639,7 +3639,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 		}
 		return;
 	}
-	printk("napi_sched: %s\n",napi->dev->name);
+	//printk("napi_sched: %s\n",napi->dev->name);
 	list_add_tail(&napi->poll_list, &sd->poll_list);
 	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
 }
@@ -5596,7 +5596,9 @@ void netif_napi_add(struct net_device *dev, struct napi_struct *napi,
 			    weight, dev->name);
 	napi->weight = weight;
 	list_add(&napi->dev_list, &dev->napi_list);
-	napi->dev = dev;
+	napi->dev = dev;	
+	/*VATC*/
+	printk("napi_sched: %s\n",napi->dev->name);
 #ifdef CONFIG_NETPOLL
 	napi->poll_owner = -1;
 #endif
@@ -7841,6 +7843,8 @@ int register_netdev(struct net_device *dev)
 	rtnl_lock();
 	err = register_netdevice(dev);
 	rtnl_unlock();
+	/*VATC*/
+	printk("Now register netdevice: %s", dev->name);
 	return err;
 }
 EXPORT_SYMBOL(register_netdev);
