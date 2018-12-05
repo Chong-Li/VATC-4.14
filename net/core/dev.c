@@ -5378,11 +5378,11 @@ bool napi_complete_done(struct napi_struct *n, int work_done)
 	}
 
 	/*VATC*/
-	if (unlikely(!list_empty(&n->kthread_list))) {
+	/*if (unlikely(!list_empty(&n->kthread_list))) {
 		local_irq_save(flags);
 		list_del_init(&n->kthread_list);
 		local_irq_restore(flags);
-	}
+	}*/
 
 	do {
 		val = READ_ONCE(n->state);
