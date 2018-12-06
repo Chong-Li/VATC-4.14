@@ -8835,6 +8835,7 @@ static int net_recv_kthread(void *data){
 					local_irq_enable();
 					napi_complete(n);
 					local_irq_disable();
+					printk("napi_complete\n");
 				} else {
 					if (n->gro_list) {
 						/* flush too old packets
@@ -8843,6 +8844,7 @@ static int net_recv_kthread(void *data){
 						local_irq_enable();
 						napi_gro_flush(n, HZ >= 1000);
 						local_irq_disable();
+						printk("napi_gro_flush\n");
 					}
 					list_move_tail(&n->kthread_list, &sd->kthread_list);
 				}
