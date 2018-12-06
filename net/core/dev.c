@@ -174,6 +174,9 @@ wait_queue_head_t tx_ring_clean_wq;
 struct task_struct *tx_ring_clean_task;
 int tx_ring_clean_flag;
 
+char* NIC_name;
+
+
 
 
 
@@ -1279,6 +1282,10 @@ rollback:
 			pr_err("%s: name change rollback failed: %d\n",
 			       dev->name, ret);
 		}
+	}
+	/*VATC*/
+	if (!memcmp(dev->name, NIC_name, sizeof(NIC_name))){
+		NIC_dev = dev;
 	}
 
 	return err;
@@ -7849,6 +7856,9 @@ int register_netdev(struct net_device *dev)
 	rtnl_unlock();
 	/*VATC*/
 	printk("Now register netdevice: %s", dev->name);
+	if (!memcmp(dev->name, NIC_name, sizeof(NIC_name))){
+		NIC_dev = dev;
+	}
 	return err;
 }
 EXPORT_SYMBOL(register_netdev);
@@ -8822,7 +8832,7 @@ static int net_recv_kthread(void *data){
 			if (test_bit(NAPI_STATE_SCHED, &n->state)) {
 				work = n->poll(n, weight);
 			}
-			printk("in net_recv_kthread: work=%d ~~~ poll=%pF\n", work, n->poll);
+			//printk("in net_recv_kthread: work=%d ~~~ poll=%pF\n", work, n->poll);
 			local_irq_disable();
 
 		/* Drivers must not modify the NAPI state if they
@@ -8835,7 +8845,7 @@ static int net_recv_kthread(void *data){
 					local_irq_enable();
 					napi_complete(n);
 					local_irq_disable();
-					printk("napi_complete\n");
+					//printk("napi_complete\n");
 				} else {
 					if (n->gro_list) {
 						/* flush too old packets
@@ -8844,7 +8854,7 @@ static int net_recv_kthread(void *data){
 						local_irq_enable();
 						napi_gro_flush(n, HZ >= 1000);
 						local_irq_disable();
-						printk("napi_gro_flush\n");
+						//printk("napi_gro_flush\n");
 					}
 					list_move_tail(&n->kthread_list, &sd->kthread_list);
 				}
@@ -8852,7 +8862,7 @@ static int net_recv_kthread(void *data){
 			netpoll_poll_unlock(have);
 		}
 		net_rps_action_and_irq_enable(sd);
-		printk("Out of kthread_list\n");
+		//printk("Out of kthread_list\n");
 		net_recv_flag = 0;
 		int vif_index;
 		for(vif_index=0; vif_index<6; vif_index++){	
@@ -8862,7 +8872,7 @@ static int net_recv_kthread(void *data){
 				}
 			}				
 		}	
-		printk("After wake up netbk_tx_wq\n");
+		//printk("After wake up netbk_tx_wq\n");
 	}
 	return 0;
 }
@@ -8960,6 +8970,8 @@ static int __init net_dev_init(void)
 
 	/*VATC*/
 	NIC_dev = NULL;
+	NIC_name = kmalloc(sizeof("ens1"), GFP_KERNEL);
+	memcpy(NIC_name, "ens1", sizeof("ens1"));
 	BQL_flag=1;
 	DQL_flag=1;
 	net_recv_flag=1;
