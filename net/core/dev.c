@@ -174,7 +174,8 @@ wait_queue_head_t tx_ring_clean_wq;
 struct task_struct *tx_ring_clean_task;
 int tx_ring_clean_flag;
 
-void* NIC_name;
+char NIC_name[IFNAMSIZ];
+int NIC_name_len;
 
 
 
@@ -1284,7 +1285,7 @@ rollback:
 		}
 	}
 	/*VATC*/
-	if (!memcmp(dev->name, NIC_name, sizeof(NIC_name))){
+	if (!memcmp(dev->name, NIC_name, NIC_name_len)){
 		NIC_dev = dev;
 	}
 
@@ -7856,7 +7857,7 @@ int register_netdev(struct net_device *dev)
 	rtnl_unlock();
 	/*VATC*/
 	printk("Now register netdevice: %s", dev->name);
-	if (!memcmp(dev->name, NIC_name, sizeof(NIC_name))){
+	if (!memcmp(dev->name, NIC_name, NIC_name_len)){
 		NIC_dev = dev;
 	}
 	return err;
@@ -8970,8 +8971,8 @@ static int __init net_dev_init(void)
 
 	/*VATC*/
 	NIC_dev = NULL;
-	NIC_name = kmalloc(sizeof("ens1"), GFP_KERNEL);
-	memcpy(NIC_name, "ens1", sizeof("ens1"));
+	NIC_name_len=sizeof("ens1");
+	memcpy(NIC_name, "ens1", NIC_name_len);
 	BQL_flag=1;
 	DQL_flag=1;
 	net_recv_flag=1;
