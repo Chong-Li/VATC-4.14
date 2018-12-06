@@ -174,7 +174,7 @@ wait_queue_head_t tx_ring_clean_wq;
 struct task_struct *tx_ring_clean_task;
 int tx_ring_clean_flag;
 
-char* NIC_name;
+void* NIC_name;
 
 
 
