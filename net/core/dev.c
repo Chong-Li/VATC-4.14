@@ -8822,7 +8822,7 @@ static int net_recv_kthread(void *data){
 			if (test_bit(NAPI_STATE_SCHED, &n->state)) {
 				work = n->poll(n, weight);
 			}
-
+			printk("in net_recv_kthread: work=%d ~~~ poll=%pF\n", work, n->poll);
 			local_irq_disable();
 
 		/* Drivers must not modify the NAPI state if they
