@@ -97,6 +97,7 @@ struct xenvif {
 	unsigned long rate;
 	unsigned long burst;
 	unsigned long tokens;
+	unsigned long last_fill;
 	struct timer_list token_timeout;
 
 	/* Statistics */
