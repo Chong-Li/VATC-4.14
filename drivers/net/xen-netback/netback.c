@@ -903,6 +903,7 @@ static void tx_credit_callback(unsigned long data)
 static void tx_token_callback(unsigned long data)
 {
 	struct xenvif *vif = (struct xenvif *)data;
+	printk("tx_token_callback~~~~\n");
 	xen_netbk_check_rx_xenvif(vif);
 }
 
@@ -1369,6 +1370,7 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 		/*VATC*/
 		if (tx_credit_exceeded(vif, txreq.size)) {
 			xenvif_put(vif);
+			printk("lack tokens~~~~\n");
 			continue;
 		}
 
