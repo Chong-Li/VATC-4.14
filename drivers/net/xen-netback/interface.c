@@ -339,6 +339,14 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 		sd->dev_queue[dev->domid-1]=dev;
 		local_irq_restore(flags);
 		skb_queue_head_init(&vif->rx_queue_backup);
+		
+		vif->rate = 10; //bytes per milli-second
+		vif->burst  = 1000;
+		vif->tokens = 1000;
+		vif->last_fill = 0;
+		init_timer(&vif->token_timeout);
+		/* Initialize 'expires' now: it's used to track the credit window. */
+		//vif->credit_timeout.expires = jiffies;
 next:
 		printk("interface.c: %s, dom: %d, priority: %d\n", __func__, dev->domid, dev->priority);
 

@@ -900,6 +900,13 @@ static void tx_credit_callback(unsigned long data)
 	xen_netbk_check_rx_xenvif(vif);
 }
 
+static void tx_token_callback(unsigned long data)
+{
+	struct xenvif *vif = (struct xenvif *)data;
+	xen_netbk_check_rx_xenvif(vif);
+}
+
+
 static void netbk_tx_err(struct xenvif *vif,
 			 struct xen_netif_tx_request *txp, RING_IDX end)
 {
@@ -1239,6 +1246,7 @@ out:
 	return err;
 }
 
+#ifndef NEW_NETBACK
 static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 {
 	unsigned long now = jiffies;
@@ -1270,6 +1278,35 @@ static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 
 	return false;
 }
+#endif
+
+#ifdef NEW_NETBACK
+static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
+{
+	if (vif->tokens < size) {
+		unsigned long now = jiffies;
+		if (now > vif->last_fill) {
+			unsigned long elapse = now-vif->last_fill;
+			unsigned long toAdd = vif->rate *  jiffies_to_msecs(elapse);
+			vif->tokens = min(vif->tokens + toAdd, vif->burst);
+			vif->last_fill = now;
+		}
+		if (vif->tokens < size) {
+			unsigned long deficit = size - vif->tokens;
+			vif->token_timeout.data     =
+				(unsigned long)vif;
+			vif->token_timeout.function =
+				tx_token_callback;
+			mod_timer(&vif->token_timeout,
+			  	vif->last_fill + msecs_to_jiffies(max(deficit/vif->rate, 1)));
+			return true;
+		}
+	}
+	vif->tokens -=size;
+	return false;
+}
+
+#endif
 
 static inline int rx_work_todo(struct xen_netbk *netbk)
 {
