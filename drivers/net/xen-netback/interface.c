@@ -340,9 +340,9 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 		local_irq_restore(flags);
 		skb_queue_head_init(&vif->rx_queue_backup);
 		
-		vif->rate = 10; //bytes per milli-second
-		vif->burst  = 1000;
-		vif->tokens = 1000;
+		vif->rate = 1; //bytes per milli-second
+		vif->burst  = 10;
+		vif->tokens = 10;
 		vif->last_fill = jiffies;
 		init_timer(&vif->token_timeout);
 		/* Initialize 'expires' now: it's used to track the credit window. */
