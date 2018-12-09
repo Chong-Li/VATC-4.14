@@ -343,7 +343,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 		vif->rate = 10; //bytes per milli-second
 		vif->burst  = 1000;
 		vif->tokens = 1000;
-		vif->last_fill = 0;
+		vif->last_fill = jiffies;
 		init_timer(&vif->token_timeout);
 		/* Initialize 'expires' now: it's used to track the credit window. */
 		//vif->credit_timeout.expires = jiffies;
