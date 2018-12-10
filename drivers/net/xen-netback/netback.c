@@ -903,7 +903,7 @@ static void tx_credit_callback(unsigned long data)
 static void tx_token_callback(unsigned long data)
 {
 	struct xenvif *vif = (struct xenvif *)data;
-	printk("tx_token_callback~~~~\n");
+	//printk("tx_token_callback~~~~\n");
 	xen_netbk_check_rx_xenvif(vif);
 }
 
@@ -1247,7 +1247,7 @@ out:
 	return err;
 }
 
-#ifdef NEW_NETBACK
+#ifndef NEW_NETBACK
 static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 {
 	unsigned long now = jiffies;
@@ -1281,9 +1281,11 @@ static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 }
 #endif
 
-#ifndef NEW_NETBACK
+#ifdef NEW_NETBACK
 static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 {
+	if (timer_pending(&vif->token_timeout))
+		return true;
 	if (vif->tokens < size) {
 		unsigned long now = jiffies;
 		if (now > vif->last_fill) {
@@ -1303,7 +1305,6 @@ static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 			return true;
 		}
 	}
-	vif->tokens -=size;
 	return false;
 }
 
@@ -1359,20 +1360,20 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 		memcpy(&txreq, RING_GET_REQUEST(&vif->tx, idx), sizeof(txreq));
 
 		/* Credit-based scheduling. */
-		if (txreq.size > vif->remaining_credit &&
+		/*if (txreq.size > vif->remaining_credit &&
 		    tx_credit_exceeded(vif, txreq.size)) {
 			xenvif_put(vif);
 			continue;
 		}
-
-		vif->remaining_credit -= txreq.size;
+		vif->remaining_credit -= txreq.size;*/
 		
 		/*VATC*/
-		/*if (tx_credit_exceeded(vif, txreq.size)) {
+		if (tx_credit_exceeded(vif, txreq.size)) {
 			xenvif_put(vif);
-			printk("lack tokens~~~~\n");
+			//printk("lack tokens~~~~\n");
 			continue;
-		}*/
+		}
+		vif->tokens -= txreq.size;
 
 		work_to_do--;
 		vif->tx.req_cons = ++idx;
