@@ -163,12 +163,15 @@ void xen_netbk_add_xenvif(struct xenvif *vif)
 	}
 
 	else{
-		netbk=&xen_netbk[vif->domid-1];
+		/*netbk=&xen_netbk[vif->domid-1];
 		netbk->priority=vif->domid-1;
 		if(vif->domid==2 ||vif->domid==3||vif->domid==4||vif->domid==5){
 			netbk=&xen_netbk[1];
 			netbk->priority=1;
-		}
+		}*/
+		netbk=&xen_netbk[vif->priority];
+		netbk->priority=vif->priority;
+		printk("add %s to netbk[%d]\n", vif->dev->name, vif->priority);
 	}
 	//if(vif->domid==1||vif->domid==2)
 		netbk->vif=NULL;
@@ -903,7 +906,7 @@ static void tx_credit_callback(unsigned long data)
 static void tx_token_callback(unsigned long data)
 {
 	struct xenvif *vif = (struct xenvif *)data;
-	//printk("tx_token_callback~~~~\n");
+	printk("tx_token_callback~~~~\n");
 	xen_netbk_check_rx_xenvif(vif);
 }
 
@@ -1314,11 +1317,13 @@ static bool tx_credit_exceeded(struct xenvif *vif, unsigned size)
 		return true;
 	
 	unsigned long now = jiffies;
-	if (now > vif->last_fill) {
-		unsigned long elapse = now-vif->last_fill;
-		unsigned long toAdd = vif->credit_bytes *  jiffies_to_msecs(elapse);
-		vif->remaining_credit= min(vif->remaining_credit + toAdd, vif->credit_usec);
-		vif->last_fill = now;
+	if (time_after_eq(now, vif->last_fill)) {
+		unsigned int elapse = jiffies_to_msecs(now-vif->last_fill);
+		if (elapse > 1 || elapse == 1) {
+			unsigned long toAdd = vif->credit_bytes *  elapse;
+			vif->remaining_credit= min(vif->remaining_credit + toAdd, vif->credit_usec);
+			vif->last_fill = now;
+		}
 	}
 		
 	if (vif->remaining_credit < size) {
@@ -1397,7 +1402,7 @@ static unsigned xen_netbk_tx_build_gops(struct xen_netbk *netbk)
 		/*VATC*/
 		if (tx_credit_exceeded(vif, txreq.size)) {
 			xenvif_put(vif);
-			//printk("lack tokens~~~~\n");
+			printk("lack tokens~~~~\n");
 			continue;
 		}
 		//vif->tokens -= txreq.size;

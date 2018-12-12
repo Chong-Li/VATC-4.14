@@ -328,7 +328,7 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 		if(dev->domid>6)
 			dev->priority=5;
 		else
-			dev->priority=(dev->domid-1);
+			dev->priority=vif->priority; //dev->priority=(dev->domid-1);
 		if(dev->domid>6)
 			goto next;
 
