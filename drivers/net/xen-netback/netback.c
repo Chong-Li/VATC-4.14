@@ -157,7 +157,7 @@ void xen_netbk_add_xenvif(struct xenvif *vif)
 
 /*RTCA*/
 #ifdef NEW_NETBACK
-	if(vif->domid>5){
+	if(vif->domid>6){
 		netbk=&xen_netbk[5];
 		netbk->priority=5;
 	}

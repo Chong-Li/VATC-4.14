@@ -8810,7 +8810,7 @@ static struct pernet_operations __net_initdata default_device_ops = {
 static int net_recv_kthread(void *data){
 	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
 	struct sched_param net_recv_param={.sched_priority=97};
-	sched_setscheduler(net_recv_task,SCHED_FIFO,&net_recv_param);
+	sched_setscheduler(current,SCHED_FIFO,&net_recv_param);
 	struct softnet_data *sd=data;
 	while (!kthread_should_stop()) {
 		wait_event_interruptible(net_recv_wq,
