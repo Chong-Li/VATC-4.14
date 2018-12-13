@@ -2532,6 +2532,7 @@ void netif_tx_wake_queue(struct netdev_queue *dev_queue)
 	if (test_and_clear_bit(__QUEUE_STATE_DRV_XOFF, &dev_queue->state)) {
 		/*VATC*/
 		BQL_flag=1;
+		printk("~~~~ set BQL=1\n");
 		struct Qdisc *q;
 
 		rcu_read_lock();
@@ -3526,7 +3527,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 
 	txq = netdev_pick_tx(dev, skb, accel_priv);
 	
-	#ifdef NEW
+#ifdef NEW
 	//rcu_read_lock_bh();
 	qdisc_skb_cb(skb)->pkt_len = skb->len;
 	skb=dev_hard_start_xmit(skb,dev,txq,&rc);
@@ -8870,6 +8871,7 @@ static int net_recv_kthread(void *data){
 			if(netbk_tx_wq[vif_index]!=NULL&&!list_empty(&(netbk_tx_wq[vif_index]->head))){					
 				if(BQL_flag==1&&DQL_flag==1){					
 					wake_up(netbk_tx_wq[vif_index]);
+					printk("~~~~~wake up netbk_tx_wq[%d]\n", vif_index);
 				}
 			}				
 		}	

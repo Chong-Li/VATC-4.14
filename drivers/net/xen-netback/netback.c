@@ -1675,6 +1675,7 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 							netbk->gso_skb=skb;
 							netbk->gso_flag=1;
 							rcu_read_unlock();
+							printk("~~~~~bad return 110\n");
 							break;
 						}
 				}
@@ -1862,6 +1863,7 @@ static int rtca_netbk_kthread(void *data)
 			xen_netbk_rx_action(netbk);
 		}
 		if(netbk->gso_skb && (BQL_flag==1) && (DQL_flag==1)){
+				printk("~~~~send gso_skb\n");
 				netbk->gso_flag=0;
 				rcu_read_lock();
 				//rcu_read_lock_bh();
