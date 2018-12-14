@@ -98,8 +98,6 @@ static int netback_probe(struct xenbus_device *dev,
 		}
 		
 #ifdef NEW_XENBUS	
-		if(sd->dom_index>=5)
-			goto next;
 		memcpy(temp_mac,(u8*)xenbus_read(xbt,dev->nodename,"mac",NULL),17);
 		//printk("MAC is %s\n",temp_mac);
 		int i,j;
@@ -115,7 +113,6 @@ static int netback_probe(struct xenbus_device *dev,
 		sd->dom_index++;
 		local_irq_restore(flags);
 #endif
-next:
 		err = xenbus_printf(xbt, dev->nodename, "feature-sg", "%d", sg);
 		if (err) {
 			message = "writing feature-sg";

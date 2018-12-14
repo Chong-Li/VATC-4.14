@@ -325,18 +325,14 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 #ifdef NEW_INTERFACE
 
 		dev->domid=vif->domid;
-		if(dev->domid>6)
-			dev->priority=5;
-		else
-			dev->priority=vif->priority; //dev->priority=(dev->domid-1);
-		if(dev->domid>6)
-			goto next;
+		dev->priority=vif->priority; //dev->priority=(dev->domid-1);
 
 		unsigned long flags;
 		struct softnet_data *sd;
 		sd=this_cpu_ptr(&softnet_data);
 		local_irq_save(flags);
-		sd->dev_queue[dev->domid-1]=dev;
+		sd->dev_queue[sd->dev_index]=dev;
+		sd->dev_index++;
 		local_irq_restore(flags);
 		skb_queue_head_init(&vif->rx_queue_backup);
 		
@@ -347,7 +343,6 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 		init_timer(&vif->token_timeout);
 		/* Initialize 'expires' now: it's used to track the credit window. */
 		//vif->credit_timeout.expires = jiffies;
-next:
 		printk("interface.c: %s, dom: %d, priority: %d\n", __func__, dev->domid, dev->priority);
 
 #endif

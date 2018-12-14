@@ -2816,7 +2816,8 @@ struct softnet_data {
 	/*VATC*/
 	struct list_head kthread_list;
 	u8 localdoms[20][ETH_ALEN];
-	struct net_device* dev_queue[6];
+	struct net_device* dev_queue[20];
+	int dev_index;
 	int dom_index;
 
 };
