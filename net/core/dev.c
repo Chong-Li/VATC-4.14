@@ -8830,13 +8830,13 @@ static int net_recv_kthread(void *data){
 			
 			local_irq_enable();
 			n = list_first_entry(&sd->kthread_list, struct napi_struct, kthread_list);
-			//have = netpoll_poll_lock(n);
+			have = netpoll_poll_lock(n);
 			weight = n->weight;
 			//weight=256;
 			work = 0;
-			//if (test_bit(NAPI_STATE_SCHED, &n->state)) {
+			if (test_bit(NAPI_STATE_SCHED, &n->state)) {
 				work = n->poll(n, weight);
-			//}
+			}
 			//printk("in net_recv_kthread: work=%d ~~~ poll=%pF\n", work, n->poll);
 			local_irq_disable();
 
@@ -8846,12 +8846,12 @@ static int net_recv_kthread(void *data){
 		 * move the instance around on the list at-will.
 		 */
 			if (unlikely(work == weight)) {
-				/*if (unlikely(napi_disable_pending(n))) {
+				if (unlikely(napi_disable_pending(n))) {
 					local_irq_enable();
 					napi_complete(n);
 					local_irq_disable();
 					//printk("napi_complete\n");
-				} else {*/
+				} else {
 					if (n->gro_list) {
 						local_irq_enable();
 						napi_gro_flush(n, HZ >= 1000);
@@ -8859,9 +8859,9 @@ static int net_recv_kthread(void *data){
 						local_irq_disable();
 					}
 					list_move_tail(&n->kthread_list, &sd->kthread_list);
-				//}
+				}
 			}
-			//netpoll_poll_unlock(have);
+			netpoll_poll_unlock(have);
 		}
 		net_rps_action_and_irq_enable(sd);
 		//printk("Out of kthread_list\n");
