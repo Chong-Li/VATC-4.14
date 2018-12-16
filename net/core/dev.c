@@ -3529,6 +3529,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	txq = netdev_pick_tx(dev, skb, accel_priv);
 	
 #ifdef NEW
+	if (!memcmp(&(skb->cb[40]), "vif", 3)){
 	//rcu_read_lock_bh();
 	qdisc_skb_cb(skb)->pkt_len = skb->len;
 	skb=dev_hard_start_xmit(skb,dev,txq,&rc);
@@ -3538,6 +3539,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 	}
 	rcu_read_unlock_bh();
 	return rc;
+	}
 #endif
 	q = rcu_dereference_bh(txq->qdisc);
 
