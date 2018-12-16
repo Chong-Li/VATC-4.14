@@ -1629,8 +1629,9 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 
 /*RTCA*/		
 #ifdef NEW_NETBACK
+			//rcu_read_unlock();
 			//netif_receive_skb(skb);
-			//goto normal;
+			//continue;
 		
 			eth_header=(struct ethhdr *)skb_mac_header(skb);
 			ip_header=(struct iphdr *)((char *)eth_header+sizeof(struct ethhdr));
@@ -1651,7 +1652,9 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 						dev_queue_xmit(skb);
 				}
 				else{
+					rcu_read_unlock();
 					netif_receive_skb(skb);
+					continue;
 				}
 			}
 			else{
@@ -1673,14 +1676,14 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 						}
 				}
 				else{
+					rcu_read_unlock();
 					netif_receive_skb(skb);
+					continue;
 				}
 			}
-
-normal:
-			rcu_read_unlock();			
-			continue;	
-	#endif
+		rcu_read_unlock();
+		continue;
+#endif
 	
 #ifndef NEW_NETBACK
 		xenvif_receive_skb(vif, skb);
