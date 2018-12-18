@@ -8984,10 +8984,10 @@ static int net_recv_kthread(void *data){
 
 		local_irq_disable();
 
-		list_splice_tail_init(&sd->poll_list, &list);
+		list_splice_tail_init(&sd->kthread_list, &list);
 		list_splice_tail(&repoll, &list);
-		list_splice(&list, &sd->poll_list);
-		if (list_empty(&sd->poll_list))
+		list_splice(&list, &sd->kthread_list);
+		if (list_empty(&sd->kthread_list))
 			net_recv_flag=0;
 
 		net_rps_action_and_irq_enable(sd);
