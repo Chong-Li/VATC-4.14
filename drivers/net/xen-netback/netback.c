@@ -1629,8 +1629,9 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 
 /*RTCA*/		
 #ifdef NEW_NETBACK
-			//rcu_read_unlock();
+			
 			//netif_receive_skb(skb);
+			//rcu_read_unlock();
 			//continue;
 		
 			eth_header=(struct ethhdr *)skb_mac_header(skb);
@@ -1652,9 +1653,7 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 						dev_queue_xmit(skb);
 				}
 				else{
-					rcu_read_unlock();
 					netif_receive_skb(skb);
-					continue;
 				}
 			}
 			else{
@@ -1675,10 +1674,8 @@ static void xen_netbk_tx_submit(struct xen_netbk *netbk)
 							break;
 						}
 				}
-				else{
-					rcu_read_unlock();
+				else{			
 					netif_receive_skb(skb);
-					continue;
 				}
 			}
 		rcu_read_unlock();

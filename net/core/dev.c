@@ -8810,7 +8810,7 @@ static struct pernet_operations __net_initdata default_device_ops = {
 	.exit_batch = default_device_exit_batch,
 };
 
-static int net_recv_kthread(void *data){
+/*static int net_recv_kthread(void *data){
 	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
 	struct sched_param net_recv_param={.sched_priority=97};
 	sched_setscheduler(current,SCHED_FIFO,&net_recv_param);
@@ -8839,12 +8839,7 @@ static int net_recv_kthread(void *data){
 			}
 			//printk("in net_recv_kthread: work=%d ~~~ poll=%pF\n", work, n->poll);
 			local_irq_disable();
-
-		/* Drivers must not modify the NAPI state if they
-		 * consume the entire weight.  In such cases this code
-		 * still "owns" the NAPI instance and therefore can
-		 * move the instance around on the list at-will.
-		 */
+	
 			if (unlikely(work == weight)) {
 				if (unlikely(napi_disable_pending(n))) {
 					local_irq_enable();
@@ -8878,7 +8873,139 @@ static int net_recv_kthread(void *data){
 		//printk("After wake up netbk_tx_wq\n");
 	}
 	return 0;
+}*/
+
+static int recv_napi_poll(struct napi_struct *n, struct list_head *repoll)
+{
+	void *have;
+	int work, weight;
+
+	list_del_init(&n->kthread_list);
+
+	have = netpoll_poll_lock(n);
+
+	weight = n->weight;
+
+	/* This NAPI_STATE_SCHED test is for avoiding a race
+	 * with netpoll's poll_napi().  Only the entity which
+	 * obtains the lock and sees NAPI_STATE_SCHED set will
+	 * actually make the ->poll() call.  Therefore we avoid
+	 * accidentally calling ->poll() when NAPI is not scheduled.
+	 */
+	work = 0;
+	if (test_bit(NAPI_STATE_SCHED, &n->state)) {
+		work = n->poll(n, weight);
+	}
+
+	WARN_ON_ONCE(work > weight);
+
+	if (likely(work < weight))
+		goto out_unlock;
+
+	/* Drivers must not modify the NAPI state if they
+	 * consume the entire weight.  In such cases this code
+	 * still "owns" the NAPI instance and therefore can
+	 * move the instance around on the list at-will.
+	 */
+	if (unlikely(napi_disable_pending(n))) {
+		napi_complete(n);
+		goto out_unlock;
+	}
+
+	if (n->gro_list) {
+		/* flush too old packets
+		 * If HZ < 1000, flush all packets.
+		 */
+		napi_gro_flush(n, HZ >= 1000);
+	}
+
+	/* Some drivers may have called napi_schedule
+	 * prior to exhausting their budget.
+	 */
+	if (unlikely(!list_empty(&n->kthread_list))) {
+		pr_warn_once("%s: Budget exhausted after napi rescheduled\n",
+			     n->dev ? n->dev->name : "backlog");
+		goto out_unlock;
+	}
+
+	list_add_tail(&n->kthread_list, repoll);
+
+out_unlock:
+	netpoll_poll_unlock(have);
+
+	return work;
 }
+
+static int net_recv_kthread(void *data){
+	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
+	struct sched_param net_recv_param={.sched_priority=97};
+	sched_setscheduler(current,SCHED_FIFO,&net_recv_param);
+	struct softnet_data *sd=data;
+	while (!kthread_should_stop()) {
+		wait_event_interruptible(net_recv_wq,
+				net_recv_flag||kthread_should_stop());
+		cond_resched();
+		if (kthread_should_stop())
+			break;
+		
+		struct softnet_data *sd = this_cpu_ptr(&softnet_data);
+		unsigned long time_limit = jiffies +
+			usecs_to_jiffies(netdev_budget_usecs);
+		int budget = netdev_budget;
+		LIST_HEAD(list);
+		LIST_HEAD(repoll);
+
+		local_irq_disable();
+		list_splice_init(&sd->kthread_list, &list);
+		local_irq_enable();
+
+		for (;;) {
+			struct napi_struct *n;
+
+			if (list_empty(&list)) {
+				if (!sd_has_rps_ipi_waiting(sd) && list_empty(&repoll))
+					goto out;
+				break;
+			}
+
+			n = list_first_entry(&list, struct napi_struct, kthread_list);
+			budget -= recv_napi_poll(n, &repoll);
+
+			/* If softirq window is exhausted then punt.
+			 * Allow this to run for 2 jiffies since which will allow
+			 * an average latency of 1.5/HZ.
+		 	*/
+			if (unlikely(budget <= 0 ||
+				     time_after_eq(jiffies, time_limit))) {
+				sd->time_squeeze++;
+				break;
+			}
+		}
+
+		local_irq_disable();
+
+		list_splice_tail_init(&sd->poll_list, &list);
+		list_splice_tail(&repoll, &list);
+		list_splice(&list, &sd->poll_list);
+		if (list_empty(&sd->poll_list))
+			net_recv_flag=0;
+
+		net_rps_action_and_irq_enable(sd);
+out:
+		__kfree_skb_flush();
+		int vif_index;
+		for(vif_index=0; vif_index<6; vif_index++){	
+			if(netbk_tx_wq[vif_index]!=NULL&&!list_empty(&(netbk_tx_wq[vif_index]->head))){					
+				if(BQL_flag==1&&DQL_flag==1){					
+					wake_up(netbk_tx_wq[vif_index]);
+					printk("~~~~~wake up netbk_tx_wq[%d]\n", vif_index);
+				}
+			}				
+		}	
+	}
+	return 0;
+}
+
 
 /*static int tx_ring_clean_kthread(void *data){
 	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
