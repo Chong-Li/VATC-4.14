@@ -8810,7 +8810,7 @@ static struct pernet_operations __net_initdata default_device_ops = {
 	.exit_batch = default_device_exit_batch,
 };
 
-/*static int net_recv_kthread(void *data){
+static int net_recv_kthread(void *data){
 	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
 	struct sched_param net_recv_param={.sched_priority=97};
 	sched_setscheduler(current,SCHED_FIFO,&net_recv_param);
@@ -8859,6 +8859,7 @@ static struct pernet_operations __net_initdata default_device_ops = {
 			netpoll_poll_unlock(have);
 		}
 		net_rps_action_and_irq_enable(sd);
+		__kfree_skb_flush();
 		//printk("Out of kthread_list\n");
 		net_recv_flag = 0;
 		int vif_index;
@@ -8873,7 +8874,7 @@ static struct pernet_operations __net_initdata default_device_ops = {
 		//printk("After wake up netbk_tx_wq\n");
 	}
 	return 0;
-}*/
+}
 
 static int recv_napi_poll(struct napi_struct *n, struct list_head *repoll)
 {
@@ -8936,7 +8937,7 @@ out_unlock:
 	return work;
 }
 
-static int net_recv_kthread(void *data){
+static int net_recv_kthread_backup(void *data){
 	printk("~~~~~~~~~%s~~~~~~~~~~~\n", __func__);		
 	struct sched_param net_recv_param={.sched_priority=97};
 	sched_setscheduler(current,SCHED_FIFO,&net_recv_param);
