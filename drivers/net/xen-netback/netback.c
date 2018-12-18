@@ -1698,13 +1698,9 @@ static void xen_netbk_tx_action(struct xen_netbk *netbk)
 
 	nr_gops = xen_netbk_tx_build_gops(netbk);
 
-#ifdef NEW_NETBACK
-	goto going;
-#endif
-
 	if (nr_gops == 0)
-		return;
-going:
+		goto submit;
+	
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_copy,
 					netbk->tx_copy_ops, nr_gops);
 	BUG_ON(ret);
